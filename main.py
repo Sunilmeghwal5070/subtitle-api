@@ -1,28 +1,22 @@
-from fastapi import FastAPI, UploadFile
-from faster_whisper import WhisperModel
-import subprocess
+from fastapi import FastAPI, UploadFile, File
+import whisper
 
 app = FastAPI()
 
-model = WhisperModel("base")
+model = whisper.load_model("base")
+
+@app.get("/")
+def home():
+    return {"message": "Subtitle API Running"}
 
 @app.post("/subtitle")
-async def generate(video: UploadFile):
+async def subtitle(file: UploadFile = File(...)):
 
-    video_path = "video.mp4"
+    with open(file.filename, "wb") as f:
+        f.write(await file.read())
 
-    with open(video_path,"wb") as f:
-        f.write(await video.read())
+    result = model.transcribe(file.filename)
 
-    segments, info = model.transcribe(video_path)
-
-    result = []
-
-    for s in segments:
-        result.append({
-            "start": s.start,
-            "end": s.end,
-            "text": s.text
-        })
-
-    return result
+    return {
+        "subtitles": result["text"]
+    }
